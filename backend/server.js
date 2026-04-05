@@ -26,7 +26,7 @@ app.post('/api/remove-background', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image uploaded. Use field name "image".' });
     }
 
-    const normalized = await normalizeInputImage(req.file.buffer, req.file.mimetype);
+    const normalized = await normalizeInputImage(req.file.buffer, req.file.mimetype, req.file.originalname);
     const inputBlob = new Blob([normalized.buffer], { type: normalized.mimeType });
 
     const outputBlob = await removeBackground(inputBlob, {
@@ -60,10 +60,28 @@ app.listen(port, () => {
   console.log(`bg-remover-backend listening on http://localhost:${port}`);
 });
 
-async function normalizeInputImage(buffer, mimeType = '') {
+async function normalizeInputImage(buffer, mimeType = '', originalName = '') {
   const lowerMime = mimeType.toLowerCase();
+  const lowerName = originalName.toLowerCase();
 
-  if (lowerMime === 'image/avif') {
+  let metadata = null;
+  try {
+    metadata = await sharp(buffer).metadata();
+  } catch {
+    metadata = null;
+  }
+
+  const format = metadata?.format?.toLowerCase() || '';
+  const shouldConvertToPng =
+    lowerMime.includes('avif') ||
+    lowerName.endsWith('.avif') ||
+    format === 'avif';
+
+  console.log(
+    `[upload] mime=${mimeType || 'unknown'} name=${originalName || 'unknown'} sharpFormat=${format || 'unknown'} convert=${shouldConvertToPng}`,
+  );
+
+  if (shouldConvertToPng) {
     const pngBuffer = await sharp(buffer).png().toBuffer();
     return { buffer: pngBuffer, mimeType: 'image/png' };
   }
