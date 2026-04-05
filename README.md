@@ -39,7 +39,7 @@ VITE_API_BASE_URL=https://your-api.example.com npm run dev
 
 Form-data:
 
-- `image`: image file
+- `image`: image file (JPEG, PNG, WebP, AVIF)
 
 Returns: `image/png`
 

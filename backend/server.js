@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import sharp from 'sharp';
 import { removeBackground } from '@imgly/background-removal-node';
 
 const app = express();
@@ -25,7 +26,8 @@ app.post('/api/remove-background', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image uploaded. Use field name "image".' });
     }
 
-    const inputBlob = new Blob([req.file.buffer], { type: req.file.mimetype || 'image/png' });
+    const normalized = await normalizeInputImage(req.file.buffer, req.file.mimetype);
+    const inputBlob = new Blob([normalized.buffer], { type: normalized.mimeType });
 
     const outputBlob = await removeBackground(inputBlob, {
       progress: (key, current, total) => {
@@ -57,3 +59,14 @@ app.post('/api/remove-background', upload.single('image'), async (req, res) => {
 app.listen(port, () => {
   console.log(`bg-remover-backend listening on http://localhost:${port}`);
 });
+
+async function normalizeInputImage(buffer, mimeType = '') {
+  const lowerMime = mimeType.toLowerCase();
+
+  if (lowerMime === 'image/avif') {
+    const pngBuffer = await sharp(buffer).png().toBuffer();
+    return { buffer: pngBuffer, mimeType: 'image/png' };
+  }
+
+  return { buffer, mimeType: mimeType || 'image/png' };
+}
